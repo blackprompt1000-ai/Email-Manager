@@ -1,0 +1,115 @@
+{
+  "user_12345": {
+    "priority_preferences": {
+      "promotional": false,
+      "system": true,
+      "personal": true,
+      "transactional": true,
+      "service": true,
+      "community": true,
+      "professional": true,
+      "social": true
+    },
+    "action_preferences": {
+      "community": "FYI",
+      "personal": "NEEDS_REPLY",
+      "professional": "ACT_NOW",
+      "promotional": "IGNORE",
+      "service": "FYI",
+      "social": "FYI",
+      "system": "FYI",
+      "transactional": "FYI"
+    },
+    "important_senders": [],
+    "custom_labels": {
+      "personal": "virag_chutiya"
+    },
+    "life_mode": "Work",
+    "fraud_sensitivity": "MEDIUM",
+    "notification_preference": "only_important",
+    "summary_preference": "MEDIUM",
+    "task_extraction": true,
+    "focus_mode": false,
+    "ai_behavior": {
+      "allow_scanning": true,
+      "allow_learning": true,
+      "allow_auto_actions": false
+    }
+  },
+  "virag_minche": {
+    "priority_preferences": {
+      "promotional": true,
+      "social": true,
+      "system": true,
+      "transactional": true,
+      "service": true,
+      "personal": true,
+      "educational": true,
+      "financial": false,
+      "community": true,
+      "professional": true,
+      "government": true,
+      "travel": true,
+      "healthcare": true
+    },
+    "action_preferences": {
+      "community": "FYI",
+      "educational": "NEEDS_REPLY",
+      "financial": "ACT_NOW",
+      "government": "ACT_NOW",
+      "healthcare": "ACT_NOW",
+      "personal": "NEEDS_REPLY",
+      "professional": "ACT_NOW",
+      "promotional": "IGNORE",
+      "service": "FYI",
+      "social": "FYI",
+      "system": "FYI",
+      "transactional": "FYI",
+      "travel": "FYI"
+    },
+    "important_senders": [],
+    "custom_labels": {},
+    "life_mode": "Student",
+    "fraud_sensitivity": "MEDIUM",
+    "notification_preference": "only_important",
+    "summary_preference": "MEDIUM",
+    "task_extraction": true,
+    "focus_mode": false,
+    "ai_behavior": {
+      "allow_scanning": true,
+      "allow_learning": true,
+      "allow_auto_actions": false
+    }
+  },
+  "user_123456": {
+    "priority_preferences": {
+      "promotional": true,
+      "system": true,
+      "service": true,
+      "transactional": true,
+      "personal": false,
+      "professional": false
+    },
+    "action_preferences": {
+      "personal": "NEEDS_REPLY",
+      "professional": "ACT_NOW",
+      "promotional": "IGNORE",
+      "service": "FYI",
+      "system": "FYI",
+      "transactional": "FYI"
+    },
+    "important_senders": [],
+    "custom_labels": {},
+    "life_mode": "Work",
+    "fraud_sensitivity": "MEDIUM",
+    "notification_preference": "only_important",
+    "summary_preference": "MEDIUM",
+    "task_extraction": true,
+    "focus_mode": false,
+    "ai_behavior": {
+      "allow_scanning": true,
+      "allow_learning": true,
+      "allow_auto_actions": false
+    }
+  }
+}
