@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
 
-from openenv_agent import EmailEnv
+from email_rectifier import EmailEnv
 from ai_processor import process_email
 
 # ── FastAPI App ──────────────────────────────────────────────────────────────
@@ -219,7 +219,8 @@ def get_state():
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
-if __name__ == "__main__":
+def main():
+    """Console entrypoint used by uv and package installs."""
     port = int(os.environ.get("PORT", 7860))
     uvicorn.run(
         "api_server:app",
@@ -228,3 +229,7 @@ if __name__ == "__main__":
         reload=False,
         log_level="info",
     )
+
+
+if __name__ == "__main__":
+    main()
