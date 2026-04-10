@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "email-rectifier-openenv"
+version = "2.0.0"
+description = "OpenEnv-compatible email decision environment, API server, and evaluation toolkit."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Virag" },
+]
+dependencies = [
+  "fastapi>=0.104.0",
+  "flask==3.0.3",
+  "gunicorn==22.0.0",
+  "httpx>=0.25.0",
+  "openai>=1.0.0",
+  "openenv-core[core]>=0.2.1",
+  "pydantic>=2.0.0",
+  "pywebview>=5.0",
+  "PyYAML>=6.0",
+  "uvicorn>=0.24.0",
+]
+
+[project.scripts]
+server = "server.app:main"
+
+[tool.setuptools]
+py-modules = [
+  "ai_processor",
+  "api_server",
+  "app",
+  "auth",
+  "email_client",
+  "inference",
+  "openenv_agent",
+  "preferences",
+  "run_app",
+  "utils",
+  "validate",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["email_rectifier*", "graders*", "server*", "tasks*"]
