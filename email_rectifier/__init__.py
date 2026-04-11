@@ -1,5 +1,19 @@
 """Packaged OpenEnv entry points for Email Rectifier."""
 
-from .environment import CATEGORY_IDEAL_ACTIONS, LIFE_MODE_MULTIPLIERS, EmailEnv
+from .environment import (
+    EMAILS,
+    GROUND_TRUTH,
+    GROUND_TRUTH_REPLIES,
+    RELATED_CATEGORIES,
+    SPAM_IDS,
+    EmailEnv,
+)
 
-__all__ = ["CATEGORY_IDEAL_ACTIONS", "LIFE_MODE_MULTIPLIERS", "EmailEnv"]
+__all__ = [
+    "EMAILS",
+    "GROUND_TRUTH",
+    "GROUND_TRUTH_REPLIES",
+    "RELATED_CATEGORIES",
+    "SPAM_IDS",
+    "EmailEnv",
+]

@@ -43,7 +43,7 @@
       "promotional": true,
       "transactional": true,
       "service": true,
-      "educational": false,
+      "educational": true,
       "personal": true,
       "community": true,
       "professional": true,

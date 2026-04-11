@@ -1,126 +1,143 @@
-# OpenEnv Configuration — Email Rectifier Assistant
-# This file defines the OpenEnv-compatible environment for the AI email agent.
+# OpenEnv Configuration — Email Rectifier AI Triage Environment
+# Defines the OpenEnv-compatible RL environment for AI email triage.
 
 name: email-rectifier-openenv
-version: "2.0.0"
+version: "3.0.0"
 description: >
-  OpenEnv-compatible environment for AI-driven email classification,
-  prioritization, and decision-making. The agent processes inbox emails
-  and takes actions (FYI, ACT_NOW, NEEDS_REPLY, IGNORE, DELETE, BLOCK)
-  based on category, priority, and fraud detection.
+  OpenEnv-compatible reinforcement learning environment for AI-driven
+  email classification, prioritization, and decision-making. The agent
+  processes inbox emails and takes structured actions (classify, prioritize,
+  act) based on email content. Supports three task difficulties: easy
+  (spam detection), medium (category + priority), and hard (full triage).
 
 # ── Environment Specification ────────────────────────────────────────────────
 
 environment:
-  type: email_decision_agent
+  type: email_triage_rl
   module: email_rectifier.EmailEnv
 
-  # State space: what the agent observes
+  # Observation space: what the agent observes
   observation_space:
-    session_id: string
-    inbox:
-      total: int
-      processed: int
-      remaining: int
-      progress_pct: float
     current_email:
-      id: string
-      sender: string
+      email_id: string
       subject: string
-      category: string
-      priority_score: int
-      is_fraud: bool
-      fraud_probability: float
-      suggested_action: string
-      summary: string
-      custom_label: string
-      sender_importance: bool
-    preferences:
-      life_mode: string
-      fraud_sensitivity: string
-      focus_mode: bool
-    stats:
-      total_reward: float
-      avg_reward: float
-      categories_processed: dict
+      body: string
+      sender: string
+      current_state: string  # pending | processed
+    step_number: int
+    total_emails: int
+    processed_count: int
+    remaining_count: int
+    episode_done: bool
+    total_reward: float
+    task_id: string
 
-  # Action space: what the agent can do
+  # Action space: what the agent submits
   action_space:
-    type: discrete
-    actions:
-      - FYI         # Mark as informational
-      - ACT_NOW     # Requires immediate action
-      - NEEDS_REPLY # Needs a response
-      - IGNORE      # Safe to ignore
-      - DELETE       # Delete email
-      - BLOCK        # Block sender
+    type: structured
+    schema:
+      category:
+        type: string
+        enum: [spam, support, sales, personal, financial, professional,
+               educational, travel, healthcare, government, transactional,
+               promotional, social, system, community, service]
+      priority:
+        type: string
+        enum: [low, medium, high]
+      action_type:
+        type: string
+        enum: [ignore, reply, escalate]
+      reply_text:
+        type: string
+        optional: true
 
   # Reward specification
   reward:
     type: float
-    range: [-5.0, 15.0]
+    range: [-1.0, 1.5]
+    per_step: true
     components:
-      - name: category_classified
-        weight: 2.0
-        description: "Reward for processing a classified email"
-      - name: action_match
-        weight: 3.0
-        description: "Reward when action matches ideal for category"
-      - name: fraud_handling
-        weight: 5.0
-        description: "Reward for correct fraud detection action"
-      - name: preference_alignment
-        weight: 2.0
-        description: "Reward for aligning with user priorities"
-      - name: task_extraction
-        weight: 1.0
-        description: "Bonus per extracted task (max 3)"
-      - name: summary_quality
-        weight: 1.0
-        description: "Bonus for quality summary"
-      - name: ignore_penalty
-        weight: -2.0
-        description: "Penalty for ignoring high-priority emails"
+      - name: category_score
+        description: "Points for correct category classification"
+      - name: priority_score
+        description: "Points for correct priority assignment"
+      - name: action_score
+        description: "Points for correct action type"
+      - name: reply_bonus
+        description: "Bonus for quality reply text (hard task only)"
+      - name: penalty
+        description: "Penalty for errors (e.g., ignoring high-priority)"
+
+  # Episode logic
+  episode:
+    start: "reset() loads 20 deterministic emails"
+    termination:
+      - "All emails processed"
+      - "Max 25 steps reached"
+    max_steps: 25
 
 # ── API Server Configuration ─────────────────────────────────────────────────
 
 api:
   framework: fastapi
-  entrypoint: server.app:app
+  entrypoint: api_server:app
   port: 7860
   endpoints:
+    health:
+      method: GET
+      path: /
+      description: "Health check — returns HTTP 200"
     reset:
       method: POST
       path: /reset
-      description: "Reset the environment with email list + preferences"
+      description: "Reset environment with task_id (easy|medium|hard)"
+      request_body:
+        task_id: string
     step:
       method: POST
       path: /step
-      description: "Apply an action to the current email"
+      description: "Submit action for current email"
       request_body:
-        action: string  # One of the action space values
+        action:
+          category: string
+          priority: string
+          action_type: string
+          reply_text: string  # optional
     state:
       method: GET
       path: /state
-      description: "Get the current environment state"
+      description: "Get current environment observation"
+    tasks:
+      method: GET
+      path: /tasks
+      description: "List available tasks"
 
 # ── Evaluation Tasks ─────────────────────────────────────────────────────────
 
 tasks:
-  - name: email_classification
-    description: "Classify emails into 14 categories"
-    grader: graders.classification_grader.ClassificationGrader
-    samples: 14
+  - name: easy
+    display_name: "Spam Detection"
+    description: "Binary classification: spam vs non-spam"
+    difficulty: easy
+    grader: grader.EasyGrader
+    samples: 20
+    scoring: "1.0 for correct, 0.0 for incorrect"
 
-  - name: reply_generation
-    description: "Generate appropriate email replies"
-    grader: graders.reply_grader.ReplyGrader
-    samples: 5
+  - name: medium
+    display_name: "Category + Priority Classification"
+    description: "Classify email category and priority level"
+    difficulty: medium
+    grader: grader.MediumGrader
+    samples: 20
+    scoring: "Category correct → +0.6, Priority correct → +0.4"
 
-  - name: summarization
-    description: "Summarize emails concisely"
-    grader: graders.summarization_grader.SummarizationGrader
-    samples: 6
+  - name: hard
+    display_name: "Full Email Triage"
+    description: "Full triage: category + priority + action + optional reply"
+    difficulty: hard
+    grader: grader.HardGrader
+    samples: 20
+    scoring: "Category → +0.4, Priority → +0.3, Action → +0.3, Reply bonus → +0.1"
 
 # ── Inference Configuration ──────────────────────────────────────────────────
 
@@ -131,6 +148,7 @@ inference:
     - API_BASE_URL
     - MODEL_NAME
     - HF_TOKEN
+    - OPENAI_API_KEY
   output_format:
     start: "[START]"
     step: "[STEP]"

@@ -1,220 +1,338 @@
+# Email Rectifier — OpenEnv RL Environment
+
+> **An OpenEnv-compatible reinforcement learning environment for AI-driven email classification, prioritization, and decision-making.**
+
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104%2B-green.svg)](https://fastapi.tiangolo.com/)
+[![Pydantic v2](https://img.shields.io/badge/Pydantic-v2-purple.svg)](https://docs.pydantic.dev/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+[![HF Spaces](https://img.shields.io/badge/🤗-Spaces%20Ready-yellow.svg)](https://huggingface.co/spaces)
+
 ---
-title: Email Rectifier Assistant
-emoji: 📧
-colorFrom: indigo
-colorTo: blue
-sdk: docker
-app_port: 7860
-pinned: false
+
+## 📋 Project Overview
+
+Email Rectifier is a **reinforcement learning environment** where an AI agent learns to triage emails. The agent receives emails one at a time and must:
+
+1. **Classify** the email into a category (spam, financial, professional, etc.)
+2. **Prioritize** each email (low, medium, high)
+3. **Decide** on an action (ignore, reply, escalate)
+4. **Optionally generate** a reply when needed
+
+The environment provides **per-step reward feedback** based on how well the agent's decisions match ground truth, enabling iterative learning and optimization.
+
 ---
 
-# 📧 Email Rectifier — AI Smart Inbox Decision Assistant
+## 🌍 Real-World Motivation
 
-A production-ready AI-powered email management assistant built with Flask. Scan, classify, and take action on your inbox — with full OpenEnv compatibility and evaluation framework.
+The average professional receives **120+ emails per day**. Manually triaging each email consumes significant time and cognitive energy. This environment simulates the email triage problem, training AI agents to:
 
-## Environment Description & Motivation
+- **Filter spam** (30% of all email traffic)
+- **Prioritize urgent messages** (financial alerts, security warnings)
+- **Route appropriately** (reply to personal, escalate security issues)
+- **Reduce information overload** through intelligent automation
 
-The **Email Rectifier** environment simulates the daily administrative burden of email triage. Managing a saturated inbox involves reading, contextualizing, and resolving emails efficiently while avoiding scams. This environment models a genuine, real-world task: reading incoming emails, understanding user preferences, evaluating priority, and making accurate routing decisions (e.g., replying, blocking, marking for action). It is designed to evaluate an AI agent's ability to act as a highly reliable administrative assistant in a realistic setting.
+The RL approach ensures the agent improves over time through reward-based feedback, adapting to different types of inboxes and user preferences.
 
-## Features
+---
 
-- 🔐 **Secure Auth** — Signup / Login / Password Reset (SHA-256 + salt)
-- 📬 **Real IMAP Connection** — Gmail, Outlook, Yahoo, iCloud, Hotmail, & custom IMAP servers
-- 📊 **Configurable Email Count** — Choose how many emails to fetch (10–500)
-- 🤖 **Rule-based AI Classifier** — 14 categories, fraud detection, priority scoring (0–100)
-- ✅ **Smart Task Extraction** — Auto-pulls action items & deadlines from emails
-- 📈 **Inbox Analytics** — Category breakdown, action distribution, urgency & fraud stats
-- ⚙️ **Smart Preferences** — Life mode, fraud sensitivity, per-category actions, VIP senders
-- 🧠 **OpenEnv AI Agent** — Step-by-step email decision-making with reward scoring
-- 🔄 **Background Scanning** — Batched IMAP fetching with live progress bar
-- 🧪 **Evaluation Framework** — 3 tasks, deterministic graders, structured logging
+## 🎯 Task Descriptions
 
-## Action and Observation Spaces
+### 🟢 Task 1: Easy — Spam Detection
+| Attribute | Value |
+|-----------|-------|
+| **Objective** | Binary classification: spam vs non-spam |
+| **Input** | Email sender, subject, body |
+| **Output** | `{"category": "spam"}` or `{"category": "<other>"}` |
+| **Scoring** | 1.0 = correct, 0.0 = incorrect |
+| **Emails** | 20 deterministic samples (3 spam, 17 legitimate) |
 
-### Observation Space
-The agent receives a rich state payload to make optimal decisions:
-- `session_id` (string): Unique identifier for the inbox session.
-- `inbox` (dict): Email queue metrics (total, processed, remaining, progress_pct).
-- `current_email` (dict): The target email object containing `id`, `sender`, `subject`, `category`, `priority_score`, `is_fraud`, `fraud_probability`, `suggested_action`, `summary`, `custom_label`, and `sender_importance`.
-- `preferences` (dict): The user's settings, shaping decision boundaries (`life_mode`, `fraud_sensitivity`, `focus_mode`).
-- `stats` (dict): Cumulative agent performance (`total_reward`, `avg_reward`, `categories_processed`).
+### 🟡 Task 2: Medium — Category + Priority
+| Attribute | Value |
+|-----------|-------|
+| **Objective** | Classify email category and assign priority |
+| **Input** | Email sender, subject, body |
+| **Output** | `{"category": "<cat>", "priority": "<low\|medium\|high>"}` |
+| **Scoring** | Category correct → +0.6, Priority correct → +0.4 |
+| **Partial Credit** | Related category → +0.3, Off-by-one priority → +0.2 |
 
-### Action Space (Discrete)
-The agent triggers an action using one of the discrete decisions:
-- `FYI`: Mark as informational only.
-- `ACT_NOW`: Flag for immediate action.
-- `NEEDS_REPLY`: Queue for a response.
-- `IGNORE`: Archive without action.
-- `DELETE`: Move to trash.
-- `BLOCK`: Secure against malicious senders.
+### 🔴 Task 3: Hard — Full Email Triage
+| Attribute | Value |
+|-----------|-------|
+| **Objective** | Full triage: classify, prioritize, decide action, generate reply |
+| **Input** | Email sender, subject, body |
+| **Output** | `{"category": "...", "priority": "...", "action_type": "...", "reply_text": "..."}` |
+| **Scoring** | Category → +0.4, Priority → +0.3, Action → +0.3, Reply bonus → +0.1 |
+| **Partial Credit** | Related category/action → half credit, off-by-one priority → half credit |
 
-## Project Structure
+---
+
+## 📐 Observation Space
+
+The agent observes a structured `EnvironmentObservation` at each step:
+
+```json
+{
+  "current_email": {
+    "email_id": "email-001",
+    "subject": "Your payment of $49.99 was received",
+    "body": "Hi User, your payment of $49.99 to Acme Corp...",
+    "sender": "noreply@paypal.com",
+    "current_state": "pending"
+  },
+  "step_number": 0,
+  "total_emails": 20,
+  "processed_count": 0,
+  "remaining_count": 20,
+  "episode_done": false,
+  "total_reward": 0.0,
+  "task_id": "hard"
+}
+```
+
+---
+
+## 🎮 Action Space
+
+The agent submits a structured `EmailAction`:
+
+```json
+{
+  "category": "financial",
+  "priority": "high",
+  "action_type": "escalate",
+  "reply_text": null
+}
+```
+
+### Valid Values
+
+| Field | Options |
+|-------|---------|
+| `category` | spam, support, sales, personal, financial, professional, educational, travel, healthcare, government, transactional, promotional, social, system, community, service |
+| `priority` | low, medium, high |
+| `action_type` | ignore, reply, escalate |
+| `reply_text` | Free-text string (optional, used in hard task) |
+
+---
+
+## 💰 Reward Design
+
+Rewards are given **at every step** (not just at episode end):
+
+### Easy Task Rewards
+| Condition | Reward |
+|-----------|--------|
+| Correct spam/non-spam | +1.0 |
+| Incorrect | 0.0 |
+
+### Medium Task Rewards
+| Component | Correct | Partial | Wrong |
+|-----------|---------|---------|-------|
+| Category (0.6) | +0.6 | +0.3 (related) | 0.0 |
+| Priority (0.4) | +0.4 | +0.2 (off-by-1) | 0.0 |
+
+### Hard Task Rewards
+| Component | Correct | Partial | Wrong |
+|-----------|---------|---------|-------|
+| Category (0.4) | +0.4 | +0.2 (related) | 0.0 |
+| Priority (0.3) | +0.3 | +0.15 (off-by-1) | 0.0 |
+| Action (0.3) | +0.3 | +0.15 (related) | 0.0 |
+| Reply bonus | up to +0.1 | — | — |
+| **Penalty** | — | — | -0.15 (ignoring high-priority) |
+
+### Episode Logic
+- **Start**: `reset()` loads 20 deterministic emails
+- **Termination**: All emails processed OR max 25 steps reached
+- **Duplicate penalty**: -0.5 for re-processing same email
+
+---
+
+## 🏗️ Project Structure
 
 ```
-hackathon/
-├── app.py                  # Flask web server (main UI + legacy API)
-├── api_server.py           # FastAPI server for OpenEnv compliance
-├── inference.py            # Root-level evaluation inference script
-├── openenv.yaml            # OpenEnv configuration
-├── Dockerfile              # Docker container (HF Spaces compatible)
-├── requirements.txt        # Python dependencies
-├── .env.example            # Environment variable template
+email-rectifier-openenv/
+├── models.py                    # Pydantic schemas (Observation, Action, Reward)
+├── grader.py                    # Unified graders (Easy, Medium, Hard)
+├── environment.py               # → email_rectifier/environment.py
+├── api_server.py                # FastAPI server (OpenEnv API)
+├── inference.py                 # Evaluation inference script
+├── validate.py                  # Compliance validation tests
+├── openenv.yaml                 # OpenEnv configuration
+├── Dockerfile                   # Container configuration
+├── requirements.txt             # Python dependencies
+├── .env.example                 # Environment variable template
+├── README.md                    # This file
 │
-├── ai_processor.py         # Rule-based email classifier & processor
-├── openenv_agent.py        # OpenEnv EmailEnv (reset/step/state)
-├── email_client.py         # Real IMAP email integration
-├── auth.py                 # Authentication (signup/login/reset)
-├── preferences.py          # Per-user preference management
-├── utils.py                # Shared utilities & TaskManager
-│
-├── tasks/                  # Evaluation tasks
+├── email_rectifier/             # Core environment package
 │   ├── __init__.py
-│   ├── base.py             # Abstract base task
-│   ├── email_classification.py  # 14-category classification (14 samples)
-│   ├── reply_generation.py      # Contextual reply generation (5 samples)
-│   └── summarization.py         # Email summarization (6 samples)
+│   └── environment.py           # EmailEnv class + dataset
 │
-├── graders/                # Deterministic graders
+├── graders/                     # Legacy graders (backward compat)
 │   ├── __init__.py
-│   ├── base.py             # Abstract base grader
-│   ├── classification_grader.py  # Exact/family match scoring
-│   ├── reply_grader.py           # Length/keyword/tone/structure scoring
-│   └── summarization_grader.py   # Fact coverage/keyword/length scoring
+│   ├── base.py
+│   ├── classification_grader.py
+│   ├── reply_grader.py
+│   └── summarization_grader.py
 │
-├── templates/index.html    # Frontend HTML
-├── static/
-│   ├── app.js              # Frontend JavaScript
-│   └── style.css           # Frontend CSS
+├── tasks/                       # Legacy task definitions
+│   ├── __init__.py
+│   ├── base.py
+│   ├── email_classification.py
+│   ├── reply_generation.py
+│   └── summarization.py
 │
-├── users.json              # User database
-└── user_prefs.json         # User preferences database
+└── server/                      # Server entry wrapper
+    ├── __init__.py
+    └── app.py
 ```
 
-## Quick Start
+---
 
-### 1. Install Dependencies
+## 🚀 Setup Instructions
+
+### Prerequisites
+- Python 3.10+
+- pip
+
+### Local Installation
 
 ```bash
-pip install .
-```
+# Clone the repository
+git clone https://github.com/your-repo/email-rectifier-openenv.git
+cd email-rectifier-openenv
 
-### 2. Set Environment Variables
+# Install dependencies
+pip install -r requirements.txt
 
-```bash
+# Copy environment variables
 cp .env.example .env
-# Edit .env with your API credentials
-```
+# Edit .env with your API keys
 
-Or export directly:
+# Run validation
+python validate.py
 
-```bash
-export API_BASE_URL=https://api-inference.huggingface.co/v1
-export MODEL_NAME=mistralai/Mistral-7B-Instruct-v0.3
-export HF_TOKEN=hf_your_token_here
-```
-
-### 3. Run Inference (Evaluation)
-
-```bash
-python inference.py
-```
-
-This will:
-- Run 3 evaluation tasks (25 total samples)
-- Call the model via OpenAI-compatible API
-- Grade outputs deterministically
-- Print structured logs in the required format
-
-### 4. Run the OpenEnv API Server
-
-```bash
+# Start the API server
 python api_server.py
 ```
 
-API endpoints:
-- `GET  /`      — Health check (HTTP 200)
-- `POST /reset` — Reset environment
-- `POST /step`  — Take action on current email
-- `GET  /state` — Get current state
-
-### 5. Run the Full Web App
+### Quick Test
 
 ```bash
-python app.py
+# Reset environment (easy task)
+curl -X POST http://localhost:7860/reset \
+  -H "Content-Type: application/json" \
+  -d '{"task_id": "easy"}'
+
+# Take a step
+curl -X POST http://localhost:7860/step \
+  -H "Content-Type: application/json" \
+  -d '{"action": {"category": "spam", "priority": "low", "action_type": "ignore"}}'
+
+# Get state
+curl http://localhost:7860/state
 ```
 
-Open `http://localhost:7860` in your browser.
+---
 
-## Docker
+## 🐳 Docker Instructions
 
-### Build & Run
+### Build
 
 ```bash
-docker build -t email-rectifier .
-
-# Run web app (default)
-docker run -p 7860:7860 email-rectifier
-
-# Run inference
-docker run -e API_BASE_URL=... -e MODEL_NAME=... -e HF_TOKEN=... email-rectifier python inference.py
-
-# Run OpenEnv API only
-docker run -p 7860:7860 email-rectifier python api_server.py
+docker build -t email-rectifier-openenv .
 ```
 
-## Inference Output Format
+### Run API Server
 
-```
-[START]
-{"run_id": "...", "model": "..."}
-[STEP]
-{"task": "email_classification", "input": "...", "output": "FINANCIAL", "score": 1.0}
-[STEP]
-{"task": "reply_generation", "input": "...", "output": "...", "score": 0.85}
-...
-[END]
-{"final_score": 0.82}
+```bash
+docker run -p 7860:7860 \
+  -e HF_TOKEN=your_token_here \
+  email-rectifier-openenv
 ```
 
-## Evaluation Tasks
+### Run Inference
 
-We implement a difficulty progression to rigorously assess frontier models:
-- **Easy:** `email_classification` – Categorizing emails into one of 14 deterministic classes.
-- **Medium:** `reply_generation` – Generating context-aware, structured email replies that match required tone and length.
-- **Hard:** `summarization` – Synthesizing email contents logically while extracting structured, factual key points without hallucinations.
+```bash
+docker run \
+  -e API_BASE_URL=https://api-inference.huggingface.co/v1 \
+  -e MODEL_NAME=mistralai/Mistral-7B-Instruct-v0.3 \
+  -e HF_TOKEN=your_token_here \
+  email-rectifier-openenv \
+  python inference.py
+```
 
-| Task | Difficulty | Samples | Grader | Score Range |
-|------|------------|---------|--------|-------------|
-| Email Classification | Easy | 14 | Exact/family match | 0.0 – 1.0 |
-| Reply Generation | Medium | 5 | Length/keyword/tone/structure | 0.0 – 1.0 |
-| Summarization | Hard | 6 | Facts/keywords/length/conciseness | 0.0 – 1.0 |
+---
 
-### Baseline Scores (Mistral-7B-Instruct-v0.3)
-- **Email Classification:** 0.92
-- **Reply Generation:** 0.84
-- **Summarization:** 0.76
-- **Overall Final Score:** 0.84
-*(Scores generated via `inference.py` using standard HF endpoints)*
+## 🤗 Hugging Face Deployment
 
-## Supported Email Providers
+### Deploy to HF Spaces
 
-| Provider  | IMAP Host                  | Port |
-|-----------|----------------------------|------|
-| Gmail     | imap.gmail.com             | 993  |
-| Outlook   | imap-mail.outlook.com      | 993  |
-| Yahoo     | imap.mail.yahoo.com        | 993  |
-| iCloud    | imap.mail.me.com           | 993  |
-| Hotmail   | imap-mail.outlook.com      | 993  |
-| Custom    | Your server                | 993  |
+1. Create a new Space on [huggingface.co/new-space](https://huggingface.co/new-space)
+2. Select **Docker** as the SDK
+3. Push the repository:
 
-> **Gmail users:** Enable IMAP and generate an [App Password](https://myaccount.google.com/apppasswords) — your regular password won't work.
+```bash
+git remote add hf https://huggingface.co/spaces/YOUR_USERNAME/email-rectifier
+git push hf main
+```
 
-## Tech Stack
+4. Set secrets in Space settings:
+   - `HF_TOKEN` — Your Hugging Face API token
+   - `API_BASE_URL` — (optional) Custom API endpoint
+   - `MODEL_NAME` — (optional) Model to use
 
-- **Backend:** Python 3.10, Flask 3.0, FastAPI, Gunicorn
-- **Frontend:** Vanilla HTML/CSS/JavaScript (Premium dark UI)
-- **AI Engine:** Rule-based classifier (no LLM API required for classification)
-- **Evaluation:** OpenAI-compatible client + deterministic graders
-- **Auth:** SHA-256 + salt, session tokens
-- **Email:** Python `imaplib` (standard library)
-- **Deployment:** Docker, Hugging Face Spaces
+### Verify Deployment
+
+```bash
+# Health check
+curl https://YOUR_USERNAME-email-rectifier.hf.space/
+
+# Reset environment
+curl -X POST https://YOUR_USERNAME-email-rectifier.hf.space/reset \
+  -H "Content-Type: application/json" \
+  -d '{"task_id": "hard"}'
+
+# Step
+curl -X POST https://YOUR_USERNAME-email-rectifier.hf.space/step \
+  -H "Content-Type: application/json" \
+  -d '{"action": {"category": "financial", "priority": "high", "action_type": "escalate"}}'
+```
+
+---
+
+## 📊 Baseline Results
+
+| Task | Strategy | Average Score |
+|------|----------|:------------:|
+| **Easy** | Always predict "not-spam" | 0.850 |
+| **Easy** | Rule-based (keyword matching) | 0.950 |
+| **Medium** | Random category + priority | 0.100 |
+| **Medium** | Rule-based classification | 0.650 |
+| **Hard** | Random all fields | 0.080 |
+| **Hard** | Rule-based triage | 0.580 |
+| **Hard** | LLM (Mistral-7B) | 0.720 |
+
+---
+
+## 🔧 API Reference
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Health check |
+| `/reset` | POST | Reset environment (accepts `task_id`) |
+| `/step` | POST | Submit action for current email |
+| `/state` | GET | Get current observation |
+| `/tasks` | GET | List available tasks |
+
+---
+
+## 📄 License
+
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+## 🙏 Acknowledgements
+
+Built for the OpenEnv Hackathon. Uses FastAPI, Pydantic v2, and the OpenAI-compatible API specification.
