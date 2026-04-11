@@ -1,3 +1,13 @@
+---
+title: AI Smart Inbox Decision Assistant
+emoji: 📧
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_file: app.py
+pinned: false
+---
+
 # Email Rectifier — OpenEnv RL Environment
 
 > **An OpenEnv-compatible reinforcement learning environment for AI-driven email classification, prioritization, and decision-making.**
